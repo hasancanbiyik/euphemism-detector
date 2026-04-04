@@ -5,7 +5,6 @@ Run: uvicorn app:app --reload --port 8000
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import torch
 import torch.nn.functional as F

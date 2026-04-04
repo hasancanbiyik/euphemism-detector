@@ -5,13 +5,11 @@ Tests run without a GPU or model weights on disk.
 Model-dependent tests are skipped when ./model is absent.
 """
 
-import os
 import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
 import torch
-import torch.nn.functional as F
 
 
 # ---------------------------------------------------------------------------
