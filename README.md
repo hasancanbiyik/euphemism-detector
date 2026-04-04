@@ -1,3 +1,12 @@
+---
+title: Euphemism Detector
+emoji: 🔍
+colorFrom: gray
+colorTo: blue
+sdk: docker
+pinned: false
+---
+
 # Euphemism Detector
 
 [![CI](https://github.com/hasancanbiyik/euphemism-detector/actions/workflows/ci.yml/badge.svg)](https://github.com/hasancanbiyik/euphemism-detector/actions/workflows/ci.yml)
