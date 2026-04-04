@@ -156,8 +156,8 @@ euphemism-detector/
 ├── requirements.txt           # Production dependencies
 ├── v1-streamlit/              # Prototype — English only, Streamlit UI
 ├── v3-multilingual/           # Multilingual training scripts
-└── extension/                 # Chrome extension (in development)
-```
+├── extension/                 # Chrome extension (in development)
+└── .github/workflows/         # CI (lint + test) and CD (deploy to HF Spaces)
 
 ---
 
@@ -184,6 +184,11 @@ euphemism-detector/
 ---
 
 ## Development
+
+### CD
+
+Every push to `main` that passes CI is automatically deployed to HuggingFace Spaces.
+
 
 ### Run tests
 
@@ -213,6 +218,7 @@ GitHub Actions runs linting and tests on every push/PR to `main` across Python 3
 - [x] Multilingual training — EN / TR / ES / ZH / YO
 - [x] Docker containerization
 - [x] CI pipeline (ruff + pytest)
+- [x] CD pipeline — auto-deploy to HuggingFace Spaces on push
 - [x] Auto-download model from HuggingFace Hub
 - [ ] Multilingual evaluation results
 - [ ] Chrome extension for in-browser detection
