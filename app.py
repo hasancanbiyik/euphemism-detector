@@ -5,32 +5,58 @@ Run: uvicorn app:app --reload --port 8000
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import torch
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from huggingface_hub import snapshot_download
 import re
 import os
+import logging
 
-app = FastAPI()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-MODEL_PATH = "./model"
+app = FastAPI(
+    title="Euphemism Detector",
+    description="Multilingual euphemism detection powered by fine-tuned XLM-RoBERTa",
+    version="2.0.0",
+)
+
+MODEL_PATH = os.environ.get("MODEL_PATH", "./model")
+HF_REPO = os.environ.get("HF_REPO", "hasancanbiyik/euphemism-detector")
+
 tokenizer, model = None, None
 
+
 def load_model():
+    """Load model from local path, falling back to HuggingFace Hub download."""
     global tokenizer, model
+
     if not os.path.exists(MODEL_PATH):
-        return False
+        logger.info(f"Local model not found at {MODEL_PATH}, downloading from {HF_REPO}...")
+        try:
+            snapshot_download(repo_id=HF_REPO, local_dir=MODEL_PATH)
+            logger.info("Model downloaded successfully.")
+        except Exception as e:
+            logger.error(f"Failed to download model: {e}")
+            return False
+
     tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
     model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
     model.eval()
+    logger.info("Model loaded and ready.")
     return True
 
+
 load_model()
+
 
 class PredictRequest(BaseModel):
     sentence: str
     phrase: str
+
 
 @app.post("/predict")
 def predict(req: PredictRequest):
@@ -57,7 +83,7 @@ def predict(req: PredictRequest):
         probs = F.softmax(outputs.logits, dim=1).squeeze()
 
     conf_literal = round(probs[0].item() * 100, 1)
-    conf_euph    = round(probs[1].item() * 100, 1)
+    conf_euph = round(probs[1].item() * 100, 1)
     label = "Euphemistic" if conf_euph > conf_literal else "Literal"
 
     return {
@@ -67,9 +93,11 @@ def predict(req: PredictRequest):
         "marked_input": marked,
     }
 
+
 @app.get("/health")
 def health():
     return {"status": "ok", "model_loaded": model is not None}
+
 
 # Serve static frontend
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
