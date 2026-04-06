@@ -1,10 +1,3 @@
-Since I can't directly trigger a file download to your computer from this chat interface, I can give you a quick terminal shortcut instead. 
-
-Since you already have your terminal open, just copy this entire block, paste it into your terminal (make sure you are inside your `euphemism-detector` folder), and hit Enter. 
-
-This uses a command that will instantly create and save the exact `README.md` file locally for you:
-
-cat << 'EOF' > README.md
 ---
 title: Euphemism Detector
 emoji: 🔍
