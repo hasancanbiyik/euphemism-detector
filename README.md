@@ -4,7 +4,6 @@ Since you already have your terminal open, just copy this entire block, paste it
 
 This uses a command that will instantly create and save the exact `README.md` file locally for you:
 
-```bash
 cat << 'EOF' > README.md
 ---
 title: Euphemism Detector
@@ -67,7 +66,6 @@ Built as part of ongoing NLP research on cross-lingual euphemism detection and t
 │  Vocab: 250,003 (base + PET_BOUNDARY token)     │
 │  Weights: HuggingFace Hub (auto-downloaded)     │
 └─────────────────────────────────────────────────┘
-```
 
 ---
 
