@@ -1,3 +1,11 @@
+Since I can't directly trigger a file download to your computer from this chat interface, I can give you a quick terminal shortcut instead. 
+
+Since you already have your terminal open, just copy this entire block, paste it into your terminal (make sure you are inside your `euphemism-detector` folder), and hit Enter. 
+
+This uses a command that will instantly create and save the exact `README.md` file locally for you:
+
+```bash
+cat << 'EOF' > README.md
 ---
 title: Euphemism Detector
 emoji: 🔍
@@ -13,7 +21,7 @@ pinned: false
 
 A multilingual euphemism detection API powered by fine-tuned XLM-RoBERTa. Given a sentence and a target phrase, the model predicts whether the phrase is used **euphemistically or literally** in context, returning confidence scores for both classes.
 
-**Live demo:** https://huggingface.co/spaces/hasancanbiyik/euphemism-detector
+**Live demo:** [HuggingFace Spaces](https://huggingface.co/spaces/hasancanbiyik/euphemism-detector)
 
 ---
 
@@ -81,20 +89,24 @@ docker run -p 7860:7860 -v ./model:/app/model euphemism-detector
 ### Run locally
 
 ```bash
-git clone https://github.com/hasancanbiyik/euphemism-detector.git
+git clone [https://github.com/hasancanbiyik/euphemism-detector.git](https://github.com/hasancanbiyik/euphemism-detector.git)
 cd euphemism-detector
 
 pip install -r requirements.txt
 uvicorn app:app --reload --port 8000
 ```
 
-Open http://localhost:8000
+Open `http://localhost:8000`
 
 ---
 
 ## API Reference
 
 ### `POST /predict`
+
+Classify whether a phrase is used euphemistically or literally within a sentence.
+
+**Request:**
 
 ```bash
 curl -X POST http://localhost:8000/predict \
@@ -106,6 +118,7 @@ curl -X POST http://localhost:8000/predict \
 ```
 
 **Response:**
+
 ```json
 {
   "label": "Euphemistic",
@@ -115,7 +128,17 @@ curl -X POST http://localhost:8000/predict \
 }
 ```
 
----
+**Error — phrase not found:**
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"sentence": "The sky is blue.", "phrase": "red"}'
+```
+
+```json
+{"error": "Phrase not found in sentence"}
+```
 
 ### `GET /health`
 
@@ -133,15 +156,15 @@ curl http://localhost:8000/health
 
 ```text
 euphemism-detector/
-├── .github/workflows/ci.yml
-├── app.py
-├── static/
-├── tests/test_core.py
-├── Dockerfile
-├── requirements.txt
-├── v1-streamlit/
-├── v3-multilingual/
-└── .github/workflows/
+├── .github/workflows/ci.yml   # CI: lint (ruff) + test (pytest) on Python 3.12/3.13
+├── app.py                     # FastAPI application
+├── static/                    # Frontend (HTML/CSS/JS)
+├── tests/test_core.py         # Endpoint, validation, and model loading tests
+├── Dockerfile                 # Container config for HuggingFace Spaces
+├── requirements.txt           # Production dependencies
+├── v1-streamlit/              # Prototype — English only, Streamlit UI
+├── v3-multilingual/           # Multilingual training scripts
+└── .github/workflows/         # CI (lint + test) and CD (deploy to HF Spaces)
 ```
 
 ---
@@ -150,46 +173,77 @@ euphemism-detector/
 
 | Property | Value |
 |----------|-------|
-| Base model | xlm-roberta-base |
-| Architecture | XLMRobertaForSequenceClassification |
+| Base model | `xlm-roberta-base` |
+| Architecture | `XLMRobertaForSequenceClassification` |
 | Labels | 0 = literal, 1 = euphemistic |
-| Special tokens | [PET_BOUNDARY] |
-| Input format | Sentence with markers |
+| Special tokens | `[PET_BOUNDARY]` (vocab size 250,003) |
+| Input format | Sentence with `[PET_BOUNDARY]phrase[PET_BOUNDARY]` markers |
 | Max length | 256 tokens |
+| Training | AdamW, linear warmup, early stopping, stratified splits |
+
+> **Note on Multilingual Performance:** While the architecture utilizes XLM-RoBERTa (which supports 100 languages), the current fine-tuned weights are primarily optimized for **English and Turkish**. Cross-lingual transfer capabilities for Spanish, Chinese, and Yoruba are currently under active evaluation and may default to literal predictions in zero-shot contexts.
+
+### English Evaluation (v1)
+
+| Class | Precision | Recall | F1 |
+|-------|-----------|--------|----|
+| Literal | 0.81 | 0.83 | 0.82 |
+| Euphemistic | 0.88 | 0.86 | 0.87 |
+| **Macro avg** | **0.84** | **0.84** | **0.84** |
 
 ---
 
 ## Development
+
+### CD
+
+Every push to `main` that passes CI is automatically deployed to HuggingFace Spaces.
+
+### Run tests
 
 ```bash
 pip install pytest httpx ruff
 pytest tests/ -v
 ```
 
+Tests use mocked models — no GPU or model weights required.
+
+### Lint
+
 ```bash
 ruff check . --select E,F --ignore E501
 ```
+
+### CI
+
+GitHub Actions runs linting and tests on every push/PR to `main` across Python 3.12 and 3.13.
 
 ---
 
 ## Roadmap
 
-- [x] English fine-tuning
-- [x] Multilingual training
-- [x] Docker
-- [x] CI/CD
-- [ ] Multilingual evaluation
+- [x] English fine-tuning — 84% macro F1
+- [x] Custom web UI (FastAPI + HTML/CSS/JS)
+- [x] Multilingual training — EN / TR / ES / ZH / YO
+- [x] Docker containerization
+- [x] CI pipeline (ruff + pytest)
+- [x] CD pipeline — auto-deploy to HuggingFace Spaces on push
+- [x] Auto-download model from HuggingFace Hub
+- [ ] Multilingual evaluation results
+- [ ] HuggingFace Hub model card
 
 ---
 
 ## Research Context
 
-Accepted at SIGTURK 2026 (EACL 2026).
+This project was developed as part of broader NLP research focusing on cross-lingual euphemism detection and transfer learning between Turkish and English. The underlying research and methodology associated with this repository have been accepted for presentation at the **SIGTURK 2026 workshop, co-located with EACL 2026**. 
 
-Preprint: https://arxiv.org/abs/2602.16957
+Read the full preprint on arXiv: **[https://arxiv.org/abs/2602.16957](https://arxiv.org/abs/2602.16957)**
 
 ---
 
 ## License
 
 MIT
+EOF
+```
