@@ -94,13 +94,99 @@ Open http://localhost:8000
 
 ## API Reference
 
-### POST /predict
+### `POST /predict`
 
-Classify whether a phrase is used euphemistically or literally within a sentence.
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sentence": "My grandfather passed away last Tuesday.",
+    "phrase": "passed away"
+  }'
+```
 
-### GET /health
+**Response:**
+```json
+{
+  "label": "Euphemistic",
+  "conf_euphemistic": 94.2,
+  "conf_literal": 5.8,
+  "marked_input": "My grandfather [PET_BOUNDARY]passed away[PET_BOUNDARY] last Tuesday."
+}
+```
 
-Returns model status.
+---
+
+### `GET /health`
+
+```bash
+curl http://localhost:8000/health
+```
+
+```json
+{"status": "ok", "model_loaded": true}
+```
+
+---
+
+## Project Structure
+
+```text
+euphemism-detector/
+├── .github/workflows/ci.yml
+├── app.py
+├── static/
+├── tests/test_core.py
+├── Dockerfile
+├── requirements.txt
+├── v1-streamlit/
+├── v3-multilingual/
+└── .github/workflows/
+```
+
+---
+
+## Model Details
+
+| Property | Value |
+|----------|-------|
+| Base model | xlm-roberta-base |
+| Architecture | XLMRobertaForSequenceClassification |
+| Labels | 0 = literal, 1 = euphemistic |
+| Special tokens | [PET_BOUNDARY] |
+| Input format | Sentence with markers |
+| Max length | 256 tokens |
+
+---
+
+## Development
+
+```bash
+pip install pytest httpx ruff
+pytest tests/ -v
+```
+
+```bash
+ruff check . --select E,F --ignore E501
+```
+
+---
+
+## Roadmap
+
+- [x] English fine-tuning
+- [x] Multilingual training
+- [x] Docker
+- [x] CI/CD
+- [ ] Multilingual evaluation
+
+---
+
+## Research Context
+
+Accepted at SIGTURK 2026 (EACL 2026).
+
+Preprint: https://arxiv.org/abs/2602.16957
 
 ---
 
