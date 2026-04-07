@@ -112,7 +112,7 @@ def predict(req: PredictRequest):
             'uk': 'Ukrainian'
         }
         detected_lang = lang_map.get(lang_code, lang_code.upper())
-    except:
+    except Exception:
         detected_lang = "Unknown"
     # --------------------------------
 
