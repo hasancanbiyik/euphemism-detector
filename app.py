@@ -1,5 +1,5 @@
 """
-app.py — FastAPI backend for Euphemism Detector V2
+app.py — FastAPI backend for Euphemism Detector
 Run: uvicorn app:app --reload --port 8000
 """
 
@@ -10,6 +10,7 @@ import torch
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from huggingface_hub import snapshot_download
+from batch import batch_router, init_batch
 import re
 import os
 import logging
