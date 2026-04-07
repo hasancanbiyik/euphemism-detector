@@ -100,31 +100,24 @@
     line-height: 1.7;
   }
 
-  /* ── Lang selector ── */
-  .lang-row {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 32px;
-    animation: fadeUp 0.6s 0.1s ease both;
-  }
-
-  .lang-btn {
-    background: transparent;
-    border: 1px solid var(--border-lit);
-    color: var(--muted2);
+  /* ── Language support badge ── */
+  .supported-langs {
     font-family: var(--font-mono);
     font-size: 11px;
-    letter-spacing: 0.08em;
-    padding: 5px 12px;
+    color: var(--muted2);
+    letter-spacing: 0.05em;
+    margin-bottom: 32px;
+    animation: fadeUp 0.6s 0.1s ease both;
+    border: 1px solid var(--border-lit);
+    display: inline-block;
+    padding: 8px 16px;
     border-radius: 20px;
-    cursor: pointer;
-    transition: all 0.18s;
+    background: rgba(255,255,255,0.02);
   }
-  .lang-btn:hover { border-color: var(--muted); color: var(--text); }
-  .lang-btn.active {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(212,255,110,0.06);
+  
+  .supported-langs span {
+    color: var(--text);
+    font-weight: 500;
   }
 
   /* ── Input card ── */
@@ -246,6 +239,7 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 20px;
+    gap: 16px;
   }
 
   .verdict {
@@ -262,6 +256,23 @@
     font-size: 11px;
     color: var(--muted2);
     margin-top: 3px;
+    word-break: break-word; /* FIX TEXT OVERFLOW */
+    white-space: normal;
+  }
+
+  /* Detected Language Badge */
+  .lang-badge {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+    font-weight: 600;
+    background: rgba(255,255,255,0.05);
+    color: var(--muted2);
+    border: 1px solid var(--border-lit);
+    display: none;
   }
 
   /* ── Confidence bars ── */
@@ -336,6 +347,7 @@
     font-size: 12px;
     line-height: 1.8;
     color: var(--muted2);
+    word-break: break-word; /* FIX TEXT OVERFLOW */
   }
   .expander.open .expander-body { display: block; }
   .pet-highlight {
@@ -390,15 +402,27 @@
     font-family: var(--font-head);
     font-size: 13px;
     font-weight: 600;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
+    word-break: break-word; /* FIX TEXT OVERFLOW */
   }
   .history-sentence {
     font-size: 11px;
     color: var(--muted2);
-    white-space: nowrap;
+    /* MULTILINE TRUNCATION TO FIX OVERFLOW */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
+    word-break: break-word;
   }
+  
+  .history-right-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+  
   .history-badge {
     font-size: 10px;
     letter-spacing: 0.08em;
@@ -418,6 +442,12 @@
     color: var(--lit-clr);
     border: 1px solid rgba(110,170,255,0.2);
   }
+  .history-lang-txt {
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
 
   /* ── Error ── */
   .error-msg {
@@ -425,6 +455,7 @@
     color: var(--accent2);
     margin-top: 10px;
     display: none;
+    word-break: break-word; /* FIX TEXT OVERFLOW */
   }
 
   /* ── Footer ── */
@@ -454,45 +485,35 @@
 <body>
 <div class="layout">
 
-  <!-- Header -->
   <header>
     <div class="wordmark">Euphemism Detector</div>
     <h1>PET <br>(Potentially Euphemistic Term)<br>Detector</h1>
     <p class="subtitle">Type a sentence, highlight a phrase, and the model will tell you if it's used euphemistically or literally in the given context.</p>
   </header>
 
-  <!-- Language selector -->
-  <div class="lang-row">
-    <button class="lang-btn active" data-lang="en">EN</button>
-    <button class="lang-btn" data-lang="tr">TR</button>
-    <button class="lang-btn" data-lang="es">ES</button>
-    <button class="lang-btn" data-lang="zh">ZH</button>
-    <button class="lang-btn" data-lang="yo">YO</button>
+  <div class="supported-langs">
+    Works in: <span>English, Turkish, Spanish, Chinese, Yoruba, Polish, & Ukrainian</span>
   </div>
 
-  <!-- Sentence input -->
   <div class="card">
     <div class="field-label">Sentence or paragraph</div>
     <textarea id="sentence-input" placeholder="After a long illness, my grandfather passed away peacefully last Tuesday." rows="4"></textarea>
   </div>
 
-  <!-- Phrase input -->
   <div class="card">
     <div class="field-label">Phrase to analyze</div>
     <input type="text" id="phrase-input" placeholder="passed away"/>
   </div>
 
-  <!-- Examples -->
   <div class="examples-label">Try an example</div>
   <div class="examples-row">
     <button class="example-chip" data-sentence="After a long illness, my grandfather passed away peacefully last Tuesday." data-phrase="passed away">passed away</button>
     <button class="example-chip" data-sentence="She was let go from the company after the merger." data-phrase="let go">let go</button>
     <button class="example-chip" data-sentence="He has been between jobs for about six months now." data-phrase="between jobs">between jobs</button>
-    <button class="example-chip" data-sentence="They talked about the birds and the bees on the drive home." data-phrase="birds and the bees">birds and the bees</button>
+    <button class="example-chip" data-sentence="Po długiej i ciężkiej chorobie, nasz ukochany dziadek wczoraj odszedł." data-phrase="odszedł">odszedł (PL)</button>
     <button class="example-chip" data-sentence="I slept on the porch with my gun on my chest." data-phrase="chest">chest (literal)</button>
   </div>
 
-  <!-- Analyze -->
   <div class="btn-row">
     <button id="analyze-btn">
       <div class="btn-spinner"></div>
@@ -501,13 +522,13 @@
     <div class="error-msg" id="error-msg"></div>
   </div>
 
-  <!-- Result -->
   <div id="result-section">
     <div class="result-header">
       <div>
         <div class="verdict" id="verdict-label">—</div>
         <div class="verdict-phrase" id="verdict-phrase"></div>
       </div>
+      <div class="lang-badge" id="detected-lang"></div>
     </div>
 
     <div class="conf-block">
@@ -533,15 +554,13 @@
     </div>
   </div>
 
-  <!-- History -->
   <div id="history-section">
     <div class="section-label">Session history</div>
     <div class="history-list" id="history-list"></div>
   </div>
 
-  <!-- Footer -->
   <footer>
-    <span>XLM-RoBERTa · Fine-tuned · EN / TR / ES / ZH / YO</span>
+    <span>XLM-RoBERTa · Fine-tuned Multilingual</span>
     <span id="model-status">checking model...</span>
   </footer>
 
@@ -550,16 +569,6 @@
 <script>
   // ── State ──────────────────────────────────────────────────────────────────
   const history = [];
-  let activeLang = 'en';
-
-  // ── Language selector ──────────────────────────────────────────────────────
-  document.querySelectorAll('.lang-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      activeLang = btn.dataset.lang;
-    });
-  });
 
   // ── Examples ──────────────────────────────────────────────────────────────
   document.querySelectorAll('.example-chip').forEach(chip => {
@@ -629,6 +638,15 @@
 
     document.getElementById('verdict-phrase').textContent = `"${phrase}"`;
 
+    // Language Badge
+    const langBadge = document.getElementById('detected-lang');
+    if (data.language && data.language !== "Unknown") {
+      langBadge.textContent = 'Language: ' + data.language;
+      langBadge.style.display = 'block';
+    } else {
+      langBadge.style.display = 'none';
+    }
+
     // Bars — set to 0 first then animate
     document.getElementById('bar-euph').style.width = '0%';
     document.getElementById('bar-lit').style.width  = '0%';
@@ -660,12 +678,21 @@
 
     const el = document.createElement('div');
     el.className = 'history-item';
+    
+    // Create the language text block if the language was detected
+    const langHtml = (item.language && item.language !== "Unknown") 
+      ? `<div class="history-lang-txt">${item.language}</div>` 
+      : '';
+
     el.innerHTML = `
       <div>
         <div class="history-phrase">${escHtml(item.phrase)}</div>
         <div class="history-sentence">${escHtml(item.sentence)}</div>
       </div>
-      <div class="history-badge ${item.label.toLowerCase()}">${item.label}</div>
+      <div class="history-right-col">
+        <div class="history-badge ${item.label.toLowerCase()}">${item.label}</div>
+        ${langHtml}
+      </div>
     `;
     el.addEventListener('click', () => {
       document.getElementById('sentence-input').value = item.sentence;
@@ -696,10 +723,6 @@
     document.getElementById('model-status').textContent = '○ server offline';
   });
 </script>
-<!-- 
-  Batch QA Section — Add this to your static/index.html
-  Place it after your existing single-prediction form.
--->
 
 <section id="batch-section" class="batch-container">
   <h2>Batch QA</h2>
@@ -808,8 +831,15 @@
   
   .results-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.85rem; }
   .results-table th { text-align: left; padding: 0.5rem; border-bottom: 1px solid #333; color: #999; }
-  .results-table td { padding: 0.5rem; border-bottom: 1px solid #222; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .results-table td:hover { white-space: normal; }
+  
+  /* FIX TEXT OVERFLOW FOR TABLE */
+  .results-table td { 
+    padding: 0.5rem; 
+    border-bottom: 1px solid #222; 
+    max-width: 300px; 
+    word-break: break-word;
+    white-space: normal; 
+  }
   
   .label-euph { color: #f7a; font-weight: bold; }
   .label-lit { color: #7df; font-weight: bold; }
@@ -836,7 +866,7 @@
 
   // Drag & drop
   uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('drag-over'); });
-  uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
+  uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'););
   uploadArea.addEventListener('drop', (e) => {
     e.preventDefault();
     uploadArea.classList.remove('drag-over');
