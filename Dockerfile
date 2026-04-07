@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY app.py .
+COPY batch.py .
 COPY static/ ./static/
 
 # Model weights are auto-downloaded from HuggingFace Hub at startup.
