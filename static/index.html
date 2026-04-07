@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Euphemism Detector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0a0a0a;
+    --surface:   #111111;
+    --border:    #1e1e1e;
+    --border-lit:#2a2a2a;
+    --text:      #e8e8e8;
+    --muted:     #555;
+    --muted2:    #888;
+    --accent:    #d4ff6e;
+    --accent2:   #ff6e6e;
+    --euph-clr:  #d4ff6e;
+    --lit-clr:   #6eaaff;
+    --radius:    10px;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Noise texture overlay ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* ── Layout ── */
+  .layout {
+    position: relative; z-index: 1;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 60px 24px 120px;
+  }
+
+  /* ── Header ── */
+  header {
+    margin-bottom: 56px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .wordmark {
+    font-family: var(--font-head);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted2);
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .wordmark::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  h1 {
+    font-family: var(--font-head);
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 12px;
+  }
+
+  .subtitle {
+    color: var(--muted2);
+    font-size: 13px;
+    max-width: 420px;
+    line-height: 1.7;
+  }
+
+  /* ── Lang selector ── */
+  .lang-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 32px;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+
+  .lang-btn {
+    background: transparent;
+    border: 1px solid var(--border-lit);
+    color: var(--muted2);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    padding: 5px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .lang-btn:hover { border-color: var(--muted); color: var(--text); }
+  .lang-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(212,255,110,0.06);
+  }
+
+  /* ── Input card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 12px;
+    animation: fadeUp 0.6s 0.15s ease both;
+    transition: border-color 0.2s;
+  }
+  .card:focus-within { border-color: var(--border-lit); }
+
+  .field-label {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  textarea, input[type="text"] {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    resize: none;
+    caret-color: var(--accent);
+  }
+  textarea { min-height: 90px; }
+  ::placeholder { color: var(--muted); }
+
+  /* ── Examples ── */
+  .examples-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+    margin-top: 20px;
+  }
+
+  .examples-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  .example-chip {
+    background: transparent;
+    border: 1px solid var(--border-lit);
+    color: var(--muted2);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.18s;
+    text-align: left;
+  }
+  .example-chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(212,255,110,0.04);
+  }
+
+  /* ── Analyze button ── */
+  .btn-row {
+    margin-top: 16px;
+    animation: fadeUp 0.6s 0.25s ease both;
+  }
+
+  #analyze-btn {
+    background: var(--accent);
+    color: #0a0a0a;
+    border: none;
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 12px 28px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.18s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #analyze-btn:hover { background: #c8f060; transform: translateY(-1px); }
+  #analyze-btn:active { transform: translateY(0); }
+  #analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-spinner {
+    width: 12px; height: 12px;
+    border: 2px solid rgba(0,0,0,0.2);
+    border-top-color: #0a0a0a;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  #analyze-btn.loading .btn-spinner { display: block; }
+  #analyze-btn.loading .btn-text { opacity: 0.7; }
+
+  /* ── Result ── */
+  #result-section {
+    margin-top: 28px;
+    display: none;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .verdict {
+    font-family: var(--font-head);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .verdict.euphemistic { color: var(--euph-clr); }
+  .verdict.literal     { color: var(--lit-clr); }
+
+  .verdict-phrase {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted2);
+    margin-top: 3px;
+  }
+
+  /* ── Confidence bars ── */
+  .conf-block { margin-bottom: 20px; }
+
+  .conf-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .conf-name {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted2);
+  }
+  .conf-pct {
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .conf-pct.euph { color: var(--euph-clr); }
+  .conf-pct.lit  { color: var(--lit-clr); }
+
+  .bar-track {
+    height: 3px;
+    background: var(--border-lit);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    width: 0;
+    transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .bar-fill.euph { background: var(--euph-clr); }
+  .bar-fill.lit  { background: var(--lit-clr); }
+
+  /* ── Marked input expander ── */
+  .expander {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-top: 16px;
+  }
+  .expander-toggle {
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    transition: color 0.18s;
+  }
+  .expander-toggle:hover { color: var(--text); }
+  .expander-icon { transition: transform 0.2s; font-size: 10px; }
+  .expander.open .expander-icon { transform: rotate(180deg); }
+  .expander-body {
+    display: none;
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--muted2);
+  }
+  .expander.open .expander-body { display: block; }
+  .pet-highlight {
+    background: rgba(212,255,110,0.12);
+    color: var(--accent);
+    border-radius: 3px;
+    padding: 0 3px;
+    font-weight: 500;
+  }
+
+  /* ── History ── */
+  #history-section {
+    margin-top: 48px;
+    display: none;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .history-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .history-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: center;
+    cursor: pointer;
+    transition: border-color 0.18s;
+  }
+  .history-item:hover { border-color: var(--border-lit); }
+
+  .history-phrase {
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .history-sentence {
+    font-size: 11px;
+    color: var(--muted2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .history-badge {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  .history-badge.euphemistic {
+    background: rgba(212,255,110,0.1);
+    color: var(--euph-clr);
+    border: 1px solid rgba(212,255,110,0.2);
+  }
+  .history-badge.literal {
+    background: rgba(110,170,255,0.1);
+    color: var(--lit-clr);
+    border: 1px solid rgba(110,170,255,0.2);
+  }
+
+  /* ── Error ── */
+  .error-msg {
+    font-size: 12px;
+    color: var(--accent2);
+    margin-top: 10px;
+    display: none;
+  }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- Header -->
+  <header>
+    <div class="wordmark">Euphemism Detector</div>
+    <h1>PET <br>(Potentially Euphemistic Term)<br>Detector</h1>
+    <p class="subtitle">Type a sentence, highlight a phrase, and the model will tell you if it's used euphemistically or literally in the given context.</p>
+  </header>
+
+  <!-- Language selector -->
+  <div class="lang-row">
+    <button class="lang-btn active" data-lang="en">EN</button>
+    <button class="lang-btn" data-lang="tr">TR</button>
+    <button class="lang-btn" data-lang="es">ES</button>
+    <button class="lang-btn" data-lang="zh">ZH</button>
+    <button class="lang-btn" data-lang="yo">YO</button>
+  </div>
+
+  <!-- Sentence input -->
+  <div class="card">
+    <div class="field-label">Sentence or paragraph</div>
+    <textarea id="sentence-input" placeholder="After a long illness, my grandfather passed away peacefully last Tuesday." rows="4"></textarea>
+  </div>
+
+  <!-- Phrase input -->
+  <div class="card">
+    <div class="field-label">Phrase to analyze</div>
+    <input type="text" id="phrase-input" placeholder="passed away"/>
+  </div>
+
+  <!-- Examples -->
+  <div class="examples-label">Try an example</div>
+  <div class="examples-row">
+    <button class="example-chip" data-sentence="After a long illness, my grandfather passed away peacefully last Tuesday." data-phrase="passed away">passed away</button>
+    <button class="example-chip" data-sentence="She was let go from the company after the merger." data-phrase="let go">let go</button>
+    <button class="example-chip" data-sentence="He has been between jobs for about six months now." data-phrase="between jobs">between jobs</button>
+    <button class="example-chip" data-sentence="They talked about the birds and the bees on the drive home." data-phrase="birds and the bees">birds and the bees</button>
+    <button class="example-chip" data-sentence="I slept on the porch with my gun on my chest." data-phrase="chest">chest (literal)</button>
+  </div>
+
+  <!-- Analyze -->
+  <div class="btn-row">
+    <button id="analyze-btn">
+      <div class="btn-spinner"></div>
+      <span class="btn-text">Analyze</span>
+    </button>
+    <div class="error-msg" id="error-msg"></div>
+  </div>
+
+  <!-- Result -->
+  <div id="result-section">
+    <div class="result-header">
+      <div>
+        <div class="verdict" id="verdict-label">—</div>
+        <div class="verdict-phrase" id="verdict-phrase"></div>
+      </div>
+    </div>
+
+    <div class="conf-block">
+      <div class="conf-row">
+        <span class="conf-name">Euphemistic</span>
+        <span class="conf-pct euph" id="conf-euph-pct">—</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill euph" id="bar-euph"></div></div>
+
+      <div class="conf-row">
+        <span class="conf-name">Literal</span>
+        <span class="conf-pct lit" id="conf-lit-pct">—</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill lit" id="bar-lit"></div></div>
+    </div>
+
+    <div class="expander" id="expander">
+      <button class="expander-toggle" onclick="toggleExpander()">
+        <span>Model input</span>
+        <span class="expander-icon">▼</span>
+      </button>
+      <div class="expander-body" id="marked-input-display"></div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div id="history-section">
+    <div class="section-label">Session history</div>
+    <div class="history-list" id="history-list"></div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <span>XLM-RoBERTa · Fine-tuned · EN / TR / ES / ZH / YO</span>
+    <span id="model-status">checking model...</span>
+  </footer>
+
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  const history = [];
+  let activeLang = 'en';
+
+  // ── Language selector ──────────────────────────────────────────────────────
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeLang = btn.dataset.lang;
+    });
+  });
+
+  // ── Examples ──────────────────────────────────────────────────────────────
+  document.querySelectorAll('.example-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.getElementById('sentence-input').value = chip.dataset.sentence;
+      document.getElementById('phrase-input').value   = chip.dataset.phrase;
+      document.getElementById('error-msg').style.display = 'none';
+    });
+  });
+
+  // ── Expander ──────────────────────────────────────────────────────────────
+  function toggleExpander() {
+    document.getElementById('expander').classList.toggle('open');
+  }
+
+  // ── Analyze ───────────────────────────────────────────────────────────────
+  document.getElementById('analyze-btn').addEventListener('click', analyze);
+  document.getElementById('phrase-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') analyze();
+  });
+
+  async function analyze() {
+    const sentence = document.getElementById('sentence-input').value.trim();
+    const phrase   = document.getElementById('phrase-input').value.trim();
+    const errEl    = document.getElementById('error-msg');
+
+    errEl.style.display = 'none';
+
+    if (!sentence) { showError('Please enter a sentence.'); return; }
+    if (!phrase)   { showError('Please enter the phrase to analyze.'); return; }
+
+    const btn = document.getElementById('analyze-btn');
+    btn.disabled = true;
+    btn.classList.add('loading');
+    btn.querySelector('.btn-text').textContent = 'Analyzing';
+
+    try {
+      const res = await fetch('/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sentence, phrase }),
+      });
+      const data = await res.json();
+
+      if (data.error) { showError(data.error); return; }
+
+      renderResult(data, phrase);
+      addToHistory({ sentence, phrase, ...data });
+
+    } catch(e) {
+      showError('Could not reach the server. Is the backend running?');
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+      btn.querySelector('.btn-text').textContent = 'Analyze';
+    }
+  }
+
+  function renderResult(data, phrase) {
+    const section = document.getElementById('result-section');
+    section.style.display = 'block';
+
+    // Verdict
+    const verdictEl = document.getElementById('verdict-label');
+    verdictEl.textContent = data.label;
+    verdictEl.className = 'verdict ' + data.label.toLowerCase();
+
+    document.getElementById('verdict-phrase').textContent = `"${phrase}"`;
+
+    // Bars — set to 0 first then animate
+    document.getElementById('bar-euph').style.width = '0%';
+    document.getElementById('bar-lit').style.width  = '0%';
+    document.getElementById('conf-euph-pct').textContent = data.conf_euphemistic + '%';
+    document.getElementById('conf-lit-pct').textContent  = data.conf_literal + '%';
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      document.getElementById('bar-euph').style.width = data.conf_euphemistic + '%';
+      document.getElementById('bar-lit').style.width  = data.conf_literal + '%';
+    }));
+
+    // Marked input with highlighted PET
+    const clean = data.marked_input
+      .replace(/\[PET_BOUNDARY\](.*?)\[PET_BOUNDARY\]/g,
+        '<span class="pet-highlight">$1</span>');
+    document.getElementById('marked-input-display').innerHTML = clean;
+
+    // Close expander on new result
+    document.getElementById('expander').classList.remove('open');
+
+    section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function addToHistory(item) {
+    history.unshift(item);
+    const section = document.getElementById('history-section');
+    const list    = document.getElementById('history-list');
+    section.style.display = 'block';
+
+    const el = document.createElement('div');
+    el.className = 'history-item';
+    el.innerHTML = `
+      <div>
+        <div class="history-phrase">${escHtml(item.phrase)}</div>
+        <div class="history-sentence">${escHtml(item.sentence)}</div>
+      </div>
+      <div class="history-badge ${item.label.toLowerCase()}">${item.label}</div>
+    `;
+    el.addEventListener('click', () => {
+      document.getElementById('sentence-input').value = item.sentence;
+      document.getElementById('phrase-input').value   = item.phrase;
+      renderResult(item, item.phrase);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    list.prepend(el);
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-msg');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Health check ──────────────────────────────────────────────────────────
+  fetch('/health').then(r => r.json()).then(d => {
+    const el = document.getElementById('model-status');
+    el.textContent = d.model_loaded ? '● model loaded' : '○ model not found';
+    el.style.color = d.model_loaded ? '#d4ff6e' : '#ff6e6e';
+  }).catch(() => {
+    document.getElementById('model-status').textContent = '○ server offline';
+  });
+</script>
+<!-- 
+  Batch QA Section — Add this to your static/index.html
+  Place it after your existing single-prediction form.
+-->
+
+<section id="batch-section" class="batch-container">
+  <h2>Batch QA</h2>
+  <p class="batch-desc">Upload a CSV with <code>sentence</code> and <code>phrase</code> columns to get batch predictions.</p>
+  
+  <div class="batch-controls">
+    <a href="/batch/template" class="btn btn-secondary" download>Download Template CSV</a>
+    
+    <div class="upload-area" id="upload-area">
+      <input type="file" id="csv-input" accept=".csv" hidden />
+      <label for="csv-input" class="upload-label">
+        <span class="upload-icon">📄</span>
+        <span id="upload-text">Choose CSV file or drag & drop</span>
+      </label>
+    </div>
+    
+    <button id="batch-submit" class="btn btn-primary" disabled>Run Batch Prediction</button>
+  </div>
+
+  <div id="batch-progress" class="batch-progress" hidden>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+    <span id="progress-text">Processing...</span>
+  </div>
+
+  <div id="batch-results" hidden>
+    <div class="results-header">
+      <h3>Results <span id="results-count"></span></h3>
+      <div class="results-actions">
+        <button id="download-csv" class="btn btn-secondary">Download CSV</button>
+        <button id="download-json" class="btn btn-secondary">Download JSON</button>
+      </div>
+    </div>
+
+    <div class="results-summary" id="results-summary"></div>
+
+    <table class="results-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Sentence</th>
+          <th>Phrase</th>
+          <th>Label</th>
+          <th>Euph %</th>
+          <th>Lit %</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="results-body"></tbody>
+    </table>
+  </div>
+</section>
+
+<style>
+  .batch-container {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid #333;
+  }
+  .batch-desc { color: #999; margin-bottom: 1rem; }
+  .batch-desc code { background: #2a2a2a; padding: 2px 6px; border-radius: 3px; }
+  
+  .batch-controls { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-bottom: 1rem; }
+  
+  .upload-area {
+    flex: 1;
+    min-width: 200px;
+    border: 2px dashed #444;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+  .upload-area:hover, .upload-area.drag-over { border-color: #6c9; }
+  .upload-label { cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+  .upload-icon { font-size: 1.3rem; }
+  
+  .btn {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: opacity 0.2s;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: #4a8fe7; color: white; }
+  .btn-secondary { background: #333; color: #ccc; }
+  .btn:hover:not(:disabled) { opacity: 0.85; }
+  
+  .batch-progress { margin: 1rem 0; }
+  .progress-bar { height: 6px; background: #333; border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: #4a8fe7; width: 0%; transition: width 0.3s; }
+  
+  .results-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+  .results-actions { display: flex; gap: 0.5rem; }
+  
+  .results-summary {
+    display: flex; gap: 2rem; padding: 1rem;
+    background: #1a1a2e; border-radius: 8px; margin: 1rem 0;
+  }
+  .summary-stat { text-align: center; }
+  .summary-stat .num { font-size: 1.5rem; font-weight: bold; }
+  .summary-stat .lbl { font-size: 0.8rem; color: #999; }
+  
+  .results-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.85rem; }
+  .results-table th { text-align: left; padding: 0.5rem; border-bottom: 1px solid #333; color: #999; }
+  .results-table td { padding: 0.5rem; border-bottom: 1px solid #222; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .results-table td:hover { white-space: normal; }
+  
+  .label-euph { color: #f7a; font-weight: bold; }
+  .label-lit { color: #7df; font-weight: bold; }
+  .status-ok { color: #6c9; }
+  .status-err { color: #f66; }
+</style>
+
+<script>
+(function() {
+  const csvInput = document.getElementById('csv-input');
+  const uploadArea = document.getElementById('upload-area');
+  const uploadText = document.getElementById('upload-text');
+  const submitBtn = document.getElementById('batch-submit');
+  const progressDiv = document.getElementById('batch-progress');
+  const progressFill = document.getElementById('progress-fill');
+  const progressText = document.getElementById('progress-text');
+  const resultsDiv = document.getElementById('batch-results');
+  const resultsBody = document.getElementById('results-body');
+  const resultsCount = document.getElementById('results-count');
+  const resultsSummary = document.getElementById('results-summary');
+
+  let selectedFile = null;
+  let lastResults = null;
+
+  // Drag & drop
+  uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('drag-over'); });
+  uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
+  uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) {
+      selectedFile = e.dataTransfer.files[0];
+      uploadText.textContent = selectedFile.name;
+      submitBtn.disabled = false;
+    }
+  });
+
+  csvInput.addEventListener('change', () => {
+    if (csvInput.files.length) {
+      selectedFile = csvInput.files[0];
+      uploadText.textContent = selectedFile.name;
+      submitBtn.disabled = false;
+    }
+  });
+
+  submitBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+
+    submitBtn.disabled = true;
+    progressDiv.hidden = false;
+    resultsDiv.hidden = true;
+    progressFill.style.width = '30%';
+    progressText.textContent = 'Uploading and processing...';
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      progressFill.style.width = '60%';
+      const response = await fetch('/batch/predict?format=json', { method: 'POST', body: formData });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || 'Batch prediction failed');
+      }
+
+      progressFill.style.width = '90%';
+      lastResults = await response.json();
+      renderResults(lastResults);
+      progressFill.style.width = '100%';
+      progressText.textContent = `Done! ${lastResults.length} predictions.`;
+    } catch (err) {
+      progressText.textContent = `Error: ${err.message}`;
+      progressFill.style.width = '100%';
+      progressFill.style.background = '#f66';
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  function renderResults(results) {
+    resultsDiv.hidden = false;
+    resultsCount.textContent = `(${results.length} rows)`;
+
+    // Summary stats
+    const total = results.length;
+    const euph = results.filter(r => r.label === 'Euphemistic').length;
+    const lit = results.filter(r => r.label === 'Literal').length;
+    const errors = results.filter(r => r.error).length;
+    const avgConf = results.filter(r => !r.error).reduce((s, r) => s + Math.max(r.conf_euphemistic, r.conf_literal), 0) / Math.max(total - errors, 1);
+
+    resultsSummary.innerHTML = `
+      <div class="summary-stat"><div class="num">${total}</div><div class="lbl">Total</div></div>
+      <div class="summary-stat"><div class="num label-euph">${euph}</div><div class="lbl">Euphemistic</div></div>
+      <div class="summary-stat"><div class="num label-lit">${lit}</div><div class="lbl">Literal</div></div>
+      <div class="summary-stat"><div class="num">${avgConf.toFixed(1)}%</div><div class="lbl">Avg Confidence</div></div>
+      ${errors ? `<div class="summary-stat"><div class="num status-err">${errors}</div><div class="lbl">Errors</div></div>` : ''}
+    `;
+
+    // Table rows
+    resultsBody.innerHTML = results.map((r, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td title="${escHtml(r.sentence)}">${escHtml(r.sentence)}</td>
+        <td><strong>${escHtml(r.phrase)}</strong></td>
+        <td class="${r.label === 'Euphemistic' ? 'label-euph' : 'label-lit'}">${r.label || '-'}</td>
+        <td>${r.error ? '-' : r.conf_euphemistic + '%'}</td>
+        <td>${r.error ? '-' : r.conf_literal + '%'}</td>
+        <td class="${r.error ? 'status-err' : 'status-ok'}">${r.error || '✓'}</td>
+      </tr>
+    `).join('');
+  }
+
+  function escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // Download handlers
+  document.getElementById('download-csv').addEventListener('click', () => {
+    if (!lastResults) return;
+    let csv = 'sentence,phrase,label,conf_euphemistic,conf_literal,error\n';
+    lastResults.forEach(r => {
+      csv += `"${r.sentence.replace(/"/g, '""')}","${r.phrase.replace(/"/g, '""')}","${r.label}",${r.conf_euphemistic},${r.conf_literal},"${r.error}"\n`;
+    });
+    downloadBlob(csv, 'batch_results.csv', 'text/csv');
+  });
+
+  document.getElementById('download-json').addEventListener('click', () => {
+    if (!lastResults) return;
+    downloadBlob(JSON.stringify(lastResults, null, 2), 'batch_results.json', 'application/json');
+  });
+
+  function downloadBlob(content, filename, type) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+})();
+</script>
+</body>
+</html>

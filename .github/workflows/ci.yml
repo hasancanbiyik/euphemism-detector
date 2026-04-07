@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest httpx fastapi python-multipart pydantic torch transformers huggingface_hub
+
+      - name: Lint with ruff
+        run: ruff check . --select E,F --ignore E501
+
+      - name: Run unit tests (mocked model)
+        run: pytest tests/test_core.py -v
+
+      # Behavioral tests require the trained model — skip in CI, run locally
+      # To enable: download model in CI and set MODEL_PATH
+      # - name: Run behavioral tests
+      #   run: MODEL_PATH=outputs/best_model pytest tests/test_behavioral.py -v

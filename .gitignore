@@ -1,0 +1,15 @@
+# Model weights (downloaded from HF Hub at runtime)
+model/
+best_model/
+outputs/
+*.bin
+*.safetensors
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
