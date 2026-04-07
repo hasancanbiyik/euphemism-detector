@@ -14,6 +14,8 @@ from batch import batch_router, init_batch
 import re
 import os
 import logging
+from langdetect import detect, DetectorFactory
+DetectorFactory.seed = 0
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -62,6 +64,8 @@ class PredictRequest(BaseModel):
     phrase: str
 
 
+from langdetect import detect  # make sure this import exists
+
 @app.post("/predict")
 def predict(req: PredictRequest):
     if model is None:
@@ -81,7 +85,14 @@ def predict(req: PredictRequest):
         flags=re.IGNORECASE,
     )
 
-    inputs = tokenizer(marked, return_tensors="pt", max_length=256, truncation=True, padding=True)
+    inputs = tokenizer(
+        marked,
+        return_tensors="pt",
+        max_length=256,
+        truncation=True,
+        padding=True
+    )
+
     with torch.no_grad():
         outputs = model(**inputs)
         probs = F.softmax(outputs.logits, dim=1).squeeze()
@@ -90,11 +101,30 @@ def predict(req: PredictRequest):
     conf_euph = round(probs[1].item() * 100, 1)
     label = "Euphemistic" if conf_euph > conf_literal else "Literal"
 
+    # --- NEW: Language detection ---
+    try:
+        lang_code = detect(sentence)
+        lang_map = {
+            'en': 'English',
+            'tr': 'Turkish',
+            'es': 'Spanish',
+            'zh-cn': 'Chinese',
+            'zh-tw': 'Chinese',
+            'yo': 'Yoruba',
+            'pl': 'Polish',
+            'uk': 'Ukrainian'
+        }
+        detected_lang = lang_map.get(lang_code, lang_code.upper())
+    except:
+        detected_lang = "Unknown"
+    # --------------------------------
+
     return {
         "label": label,
         "conf_euphemistic": conf_euph,
         "conf_literal": conf_literal,
         "marked_input": marked,
+        "language": detected_lang  # <-- added here
     }
 
 
