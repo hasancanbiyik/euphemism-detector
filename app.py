@@ -1,5 +1,5 @@
 """
-app.py — FastAPI backend for Euphemism Detector
+app.py — FastAPI backend for Euphemism Detector V2
 Run: uvicorn app:app --reload --port 8000
 """
 
@@ -19,12 +19,12 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Euphemism Detector",
-    description="Multilingual euphemism detection powered by fine-tuned XLM-RoBERTa",
+    description="Multilingual euphemism detection powered by fine-tuned XLM-RoBERTa (7 languages)",
     version="2.0.0",
 )
 
 MODEL_PATH = os.environ.get("MODEL_PATH", "./model")
-HF_REPO = os.environ.get("HF_REPO", "hasancanbiyik/euphemism-detector")
+HF_REPO = os.environ.get("HF_REPO", "hasancanbiyik/euphemism-detector-multilingual")
 
 tokenizer, model = None, None
 
@@ -50,6 +50,13 @@ def load_model():
 
 
 load_model()
+
+# Wire up batch QA router AFTER model loads
+from batch import batch_router, init_batch
+
+if model is not None:
+    init_batch(model, tokenizer)
+app.include_router(batch_router)
 
 
 class PredictRequest(BaseModel):

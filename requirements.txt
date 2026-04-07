@@ -1,6 +1,14 @@
-torch>=2.0.0
-transformers>=4.35.0
-huggingface_hub>=0.20.0
-fastapi>=0.104.0
-uvicorn>=0.24.0
-python-multipart>=0.0.6
+# Web Framework & API
+fastapi
+python-multipart
+pydantic
+uvicorn
+
+# Machine Learning & NLP
+torch
+transformers
+huggingface_hub
+
+# Testing
+pytest
+httpx
