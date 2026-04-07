@@ -63,9 +63,6 @@ class PredictRequest(BaseModel):
     sentence: str
     phrase: str
 
-
-from langdetect import detect  # make sure this import exists
-
 @app.post("/predict")
 def predict(req: PredictRequest):
     if model is None:
