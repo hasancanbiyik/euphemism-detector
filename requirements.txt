@@ -8,6 +8,7 @@ uvicorn
 torch
 transformers
 huggingface_hub
+langdetect
 
 # Testing
 pytest
