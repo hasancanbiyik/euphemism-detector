@@ -782,6 +782,13 @@
     margin-top: 2rem;
     padding-top: 2rem;
     border-top: 1px solid #333;
+    max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 24px;
+    padding-right: 24px;
+    position: relative;
+    z-index: 1;
   }
   .batch-desc { color: #999; margin-bottom: 1rem; }
   .batch-desc code { background: #2a2a2a; padding: 2px 6px; border-radius: 3px; }
@@ -796,9 +803,10 @@
     padding: 1rem;
     text-align: center;
     transition: border-color 0.2s;
+    cursor: pointer;
   }
   .upload-area:hover, .upload-area.drag-over { border-color: #6c9; }
-  .upload-label { cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+  .upload-label { cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; pointer-events: none; }
   .upload-icon { font-size: 1.3rem; }
   
   .btn {
@@ -864,11 +872,33 @@
   let selectedFile = null;
   let lastResults = null;
 
-  // Drag & drop
-  uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('drag-over'); });
-  uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
+  // ── GLOBAL drag prevention ──
+  // Prevents browser from opening/downloading files dropped anywhere on the page
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
+    document.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+  });
+
+  // ── Upload area: visual feedback on drag ──
+  uploadArea.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('drag-over');
+  });
+  uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('drag-over');
+  });
+  uploadArea.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('drag-over');
+  });
+
+  // ── Upload area: handle file drop ──
   uploadArea.addEventListener('drop', (e) => {
     e.preventDefault();
+    e.stopPropagation();
     uploadArea.classList.remove('drag-over');
     if (e.dataTransfer.files.length) {
       selectedFile = e.dataTransfer.files[0];
@@ -877,6 +907,14 @@
     }
   });
 
+  // ── Upload area: click to open file picker ──
+  uploadArea.addEventListener('click', (e) => {
+    // Prevent double-trigger if clicking directly on the hidden input
+    if (e.target === csvInput) return;
+    csvInput.click();
+  });
+
+  // ── File input: handle selection via file picker ──
   csvInput.addEventListener('change', () => {
     if (csvInput.files.length) {
       selectedFile = csvInput.files[0];
@@ -885,6 +923,7 @@
     }
   });
 
+  // ── Submit: run batch prediction ──
   submitBtn.addEventListener('click', async () => {
     if (!selectedFile) return;
 
@@ -892,6 +931,7 @@
     progressDiv.hidden = false;
     resultsDiv.hidden = true;
     progressFill.style.width = '30%';
+    progressFill.style.background = '#4a8fe7';
     progressText.textContent = 'Uploading and processing...';
 
     const formData = new FormData();
@@ -910,9 +950,9 @@
       lastResults = await response.json();
       renderResults(lastResults);
       progressFill.style.width = '100%';
-      progressText.textContent = `Done! ${lastResults.length} predictions.`;
+      progressText.textContent = 'Done! ' + lastResults.length + ' predictions.';
     } catch (err) {
-      progressText.textContent = `Error: ${err.message}`;
+      progressText.textContent = 'Error: ' + err.message;
       progressFill.style.width = '100%';
       progressFill.style.background = '#f66';
     } finally {
@@ -922,7 +962,7 @@
 
   function renderResults(results) {
     resultsDiv.hidden = false;
-    resultsCount.textContent = `(${results.length} rows)`;
+    resultsCount.textContent = '(' + results.length + ' rows)';
 
     // Summary stats
     const total = results.length;
@@ -931,53 +971,52 @@
     const errors = results.filter(r => r.error).length;
     const avgConf = results.filter(r => !r.error).reduce((s, r) => s + Math.max(r.conf_euphemistic, r.conf_literal), 0) / Math.max(total - errors, 1);
 
-    resultsSummary.innerHTML = `
-      <div class="summary-stat"><div class="num">${total}</div><div class="lbl">Total</div></div>
-      <div class="summary-stat"><div class="num label-euph">${euph}</div><div class="lbl">Euphemistic</div></div>
-      <div class="summary-stat"><div class="num label-lit">${lit}</div><div class="lbl">Literal</div></div>
-      <div class="summary-stat"><div class="num">${avgConf.toFixed(1)}%</div><div class="lbl">Avg Confidence</div></div>
-      ${errors ? `<div class="summary-stat"><div class="num status-err">${errors}</div><div class="lbl">Errors</div></div>` : ''}
-    `;
+    resultsSummary.innerHTML =
+      '<div class="summary-stat"><div class="num">' + total + '</div><div class="lbl">Total</div></div>' +
+      '<div class="summary-stat"><div class="num label-euph">' + euph + '</div><div class="lbl">Euphemistic</div></div>' +
+      '<div class="summary-stat"><div class="num label-lit">' + lit + '</div><div class="lbl">Literal</div></div>' +
+      '<div class="summary-stat"><div class="num">' + avgConf.toFixed(1) + '%</div><div class="lbl">Avg Confidence</div></div>' +
+      (errors ? '<div class="summary-stat"><div class="num status-err">' + errors + '</div><div class="lbl">Errors</div></div>' : '');
 
     // Table rows
-    resultsBody.innerHTML = results.map((r, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td title="${escHtml(r.sentence)}">${escHtml(r.sentence)}</td>
-        <td><strong>${escHtml(r.phrase)}</strong></td>
-        <td class="${r.label === 'Euphemistic' ? 'label-euph' : 'label-lit'}">${r.label || '-'}</td>
-        <td>${r.error ? '-' : r.conf_euphemistic + '%'}</td>
-        <td>${r.error ? '-' : r.conf_literal + '%'}</td>
-        <td class="${r.error ? 'status-err' : 'status-ok'}">${r.error || '✓'}</td>
-      </tr>
-    `).join('');
+    resultsBody.innerHTML = results.map(function(r, i) {
+      return '<tr>' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td title="' + escHtml(r.sentence) + '">' + escHtml(r.sentence) + '</td>' +
+        '<td><strong>' + escHtml(r.phrase) + '</strong></td>' +
+        '<td class="' + (r.label === 'Euphemistic' ? 'label-euph' : 'label-lit') + '">' + (r.label || '-') + '</td>' +
+        '<td>' + (r.error ? '-' : r.conf_euphemistic + '%') + '</td>' +
+        '<td>' + (r.error ? '-' : r.conf_literal + '%') + '</td>' +
+        '<td class="' + (r.error ? 'status-err' : 'status-ok') + '">' + (r.error || '\u2713') + '</td>' +
+      '</tr>';
+    }).join('');
   }
 
   function escHtml(s) {
-    const d = document.createElement('div');
+    var d = document.createElement('div');
     d.textContent = s;
     return d.innerHTML;
   }
 
   // Download handlers
-  document.getElementById('download-csv').addEventListener('click', () => {
+  document.getElementById('download-csv').addEventListener('click', function() {
     if (!lastResults) return;
-    let csv = 'sentence,phrase,label,conf_euphemistic,conf_literal,error\n';
-    lastResults.forEach(r => {
-      csv += `"${r.sentence.replace(/"/g, '""')}","${r.phrase.replace(/"/g, '""')}","${r.label}",${r.conf_euphemistic},${r.conf_literal},"${r.error}"\n`;
+    var csv = 'sentence,phrase,label,conf_euphemistic,conf_literal,error\n';
+    lastResults.forEach(function(r) {
+      csv += '"' + r.sentence.replace(/"/g, '""') + '","' + r.phrase.replace(/"/g, '""') + '","' + r.label + '",' + r.conf_euphemistic + ',' + r.conf_literal + ',"' + r.error + '"\n';
     });
     downloadBlob(csv, 'batch_results.csv', 'text/csv');
   });
 
-  document.getElementById('download-json').addEventListener('click', () => {
+  document.getElementById('download-json').addEventListener('click', function() {
     if (!lastResults) return;
     downloadBlob(JSON.stringify(lastResults, null, 2), 'batch_results.json', 'application/json');
   });
 
   function downloadBlob(content, filename, type) {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    var blob = new Blob([content], { type: type });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
     a.href = url; a.download = filename;
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
